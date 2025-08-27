@@ -17,7 +17,7 @@ function error() {
 if ! command -v docker &> /dev/null; then
   info "Installing Docker..."
   sudo apt update -y
-  sudo apt install -y curl docker.io docker-compose
+  sudo apt install -y curl docker.io
   sudo systemctl start docker
   sudo systemctl enable docker
 else
@@ -43,13 +43,12 @@ info "Password set to: $vnc_password"
 
 # Create docker-compose.yml
 cat > docker-compose.yml << EOF
-version: '3.8'
 services:
   chrome:
     image: kasmweb/chrome:1.15.0
     container_name: kasm-chrome
     environment:
-      - VNC_PW=${vnc_password}
+      - VNC_PW=$vnc_password
     ports:
       - "6901:6901"
     shm_size: 2g
