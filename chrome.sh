@@ -22,9 +22,13 @@ else
   info "Docker already installed, skipping installation."
 fi
 
-# Ask for Chromium login credentials
-read -p "Enter a username for Chromium login: " chromium_user
-read -p "Enter a password for Chromium login: " chromium_pass
+# Ask for Chromium login credentials with default values
+info "Enter a username for Chromium login (default: user):"
+read -p "" chromium_user
+chromium_user=${chromium_user:-user}
+info "Enter a password for Chromium login (default: pass):"
+read -p "" chromium_pass
+chromium_pass=${chromium_pass:-pass}
 echo ""
 
 # Set up UFW port
@@ -47,7 +51,7 @@ COPY . .
 CMD echo "Username: \$CHROME_USER" && echo "Password: \$CHROME_PASS" && google-chrome-stable --no-sandbox --disable-dev-shm-usage
 EOF
 
-# Create docker-compose.yml with unless-stopped
+# Create docker-compose.yml with unless-stopped and proper indentation
 cat <<EOF > docker-compose.yml
 version: '3'
 services:
@@ -61,9 +65,19 @@ services:
     restart: unless-stopped
 EOF
 
+# Verify docker-compose.yml
+if ! grep -q "restart: unless-stopped" docker-compose.yml; then
+  error "Failed to create valid docker-compose.yml"
+  exit 1
+fi
+
 # Build and start the Docker container
 info "Building and starting Chromium service..."
-docker compose up --build -d
+if ! docker compose up --build -d 2> docker-error.log; then
+  error "Failed to start Chromium service. Check docker-error.log for details."
+  cat docker-error.log
+  exit 1
+fi
 
 success "Chromium service is running!"
 echo "Open in browser: http://<your-vps-ip>:3011/"
