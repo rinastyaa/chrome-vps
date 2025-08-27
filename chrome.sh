@@ -18,6 +18,8 @@ if ! command -v docker &> /dev/null; then
   info "Docker not found, installing Docker..."
   sudo apt update -y
   sudo apt install -y curl docker.io docker-compose
+  sudo systemctl start docker
+  sudo systemctl enable docker
 else
   info "Docker already installed, skipping installation."
 fi
@@ -51,8 +53,8 @@ COPY . .
 CMD echo "Username: \$CHROME_USER" && echo "Password: \$CHROME_PASS" && google-chrome-stable --no-sandbox --disable-dev-shm-usage
 EOF
 
-# Create docker-compose.yml with unless-stopped and proper indentation
-cat <<EOF > docker-compose.yml
+# Create docker-compose.yml with strict indentation
+cat > docker-compose.yml <<'EOF'
 version: '3'
 services:
   chromium:
@@ -60,14 +62,15 @@ services:
     ports:
       - "3011:3001"
     environment:
-      - CHROME_USER=$chromium_user
-      - CHROME_PASS=$chromium_pass
+      - CHROME_USER=${chromium_user}
+      - CHROME_PASS=${chromium_pass}
     restart: unless-stopped
 EOF
 
-# Verify docker-compose.yml
-if ! grep -q "restart: unless-stopped" docker-compose.yml; then
-  error "Failed to create valid docker-compose.yml"
+# Verify docker-compose.yml syntax
+if ! docker compose config >/dev/null 2>&1; then
+  error "Invalid docker-compose.yml syntax. Check file content:"
+  cat docker-compose.yml
   exit 1
 fi
 
