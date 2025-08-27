@@ -17,7 +17,7 @@ function error() {
 if ! command -v docker &> /dev/null; then
   info "Installing Docker..."
   sudo apt update -y
-  sudo apt install -y curl docker.io
+  sudo apt install -y curl docker.io docker-compose
   sudo systemctl start docker
   sudo systemctl enable docker
 else
@@ -32,14 +32,10 @@ sudo ufw allow 6901/tcp || true
 mkdir -p ~/kasm-chrome
 cd ~/kasm-chrome
 
-# Ask for VNC password
-info "Enter VNC password (default: password):"
-read -p "Password: " vnc_password
-if [ -z "$vnc_password" ]; then
-    vnc_password="password"
-fi
+# Set default or create password 
+vnc_password="${KASM_PASSWORD:-password}"
+info "Using VNC password: $vnc_password"
 echo ""
-info "Password set to: $vnc_password"
 
 # Create docker-compose.yml
 cat > docker-compose.yml << EOF
@@ -83,5 +79,5 @@ if sudo docker ps | grep -q kasm-chrome; then
   echo "   - Copy/paste"
 else
   error "Failed to start Chrome"
-  echo "Check logs: sudo docker compose logs -f"
+  echo "Check logs: docker compose logs -f"
 fi
