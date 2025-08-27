@@ -34,9 +34,12 @@ cd ~/kasm-chrome
 
 # Ask for VNC password
 info "Enter VNC password (default: password):"
-read -s vnc_password
-vnc_password=${vnc_password:-password}
+read -p "Password: " vnc_password
+if [ -z "$vnc_password" ]; then
+    vnc_password="password"
+fi
 echo ""
+info "Password set to: $vnc_password"
 
 # Create docker-compose.yml
 cat > docker-compose.yml << EOF
@@ -71,7 +74,7 @@ if sudo docker ps | grep -q kasm-chrome; then
   echo ""
   echo "🔐 Login credentials:"
   echo "   User: kasm_user"
-  echo "   Password: ${vnc_password}"
+  echo "   Password: $vnc_password"
   echo ""
   echo "✨ Features:"
   echo "   - Full Google Chrome"
@@ -81,5 +84,5 @@ if sudo docker ps | grep -q kasm-chrome; then
   echo "   - Copy/paste"
 else
   error "Failed to start Chrome"
-  echo "Check logs: docker compose logs"
+  echo "Check logs: sudo docker compose logs -f"
 fi
