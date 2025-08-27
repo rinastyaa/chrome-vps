@@ -13,9 +13,9 @@ function error() {
   echo -e "\033[1;31m[✘]\033[0m $1" >&2
 }
 
-# Check if Docker is installed, install if not
+# Check Docker
 if ! command -v docker &> /dev/null; then
-  info "Docker not found, installing Docker..."
+  info "Installing Docker..."
   sudo apt update -y
   sudo apt install -y curl docker.io docker-compose
   sudo systemctl start docker
@@ -24,65 +24,62 @@ else
   info "Docker already installed, skipping installation."
 fi
 
-# Ask for Chromium login credentials with default values
-info "Enter a username for Chromium login (default: user):"
-read -p "" chromium_user
-chromium_user=${chromium_user:-user}
-info "Enter a password for Chromium login (default: pass):"
-read -p "" chromium_pass
-chromium_pass=${chromium_pass:-pass}
+# Open firewall port
+info "Opening firewall port 6901..."
+sudo ufw allow 6901/tcp || true
+
+# Create directory
+mkdir -p ~/kasm-chrome
+cd ~/kasm-chrome
+
+# Ask for VNC password
+info "Enter VNC password (default: password):"
+read -s vnc_password
+vnc_password=${vnc_password:-password}
 echo ""
 
-# Set up UFW port
-info "Opening firewall port 3011..."
-sudo ufw allow 3011/tcp || true
-
-# Create project directory
-mkdir -p ~/chromium-server
-cd ~/chromium-server
-
-# Create Dockerfile
-cat <<EOF > Dockerfile
-FROM zenika/alpine-chrome:with-node
-
-RUN npm install -g serve
-
-WORKDIR /app
-COPY . .
-
-CMD echo "Username: \$CHROME_USER" && echo "Password: \$CHROME_PASS" && google-chrome-stable --no-sandbox --disable-dev-shm-usage
-EOF
-
-# Create docker-compose.yml with strict indentation
-cat > docker-compose.yml <<'EOF'
-version: '3'
+# Create docker-compose.yml
+cat > docker-compose.yml << EOF
+version: '3.8'
 services:
-  chromium:
-    build: .
-    ports:
-      - "3011:3001"
+  chrome:
+    image: kasmweb/chrome:1.15.0
+    container_name: kasm-chrome
     environment:
-      - CHROME_USER=${chromium_user}
-      - CHROME_PASS=${chromium_pass}
+      - VNC_PW=${vnc_password}
+    ports:
+      - "6901:6901"
+    shm_size: 2g
     restart: unless-stopped
+    volumes:
+      - ./downloads:/home/kasm-user/Downloads
 EOF
 
-# Verify docker-compose.yml syntax
-if ! docker compose config >/dev/null 2>&1; then
-  error "Invalid docker-compose.yml syntax. Check file content:"
-  cat docker-compose.yml
-  exit 1
-fi
+# Start service
+info "Starting Chrome browser service..."
+sudo docker compose up -d
 
-# Build and start the Docker container
-info "Building and starting Chromium service..."
-if ! docker compose up --build -d 2> docker-error.log; then
-  error "Failed to start Chromium service. Check docker-error.log for details."
-  cat docker-error.log
-  exit 1
-fi
+# Wait for startup
+info "Waiting for service to start..."
+sleep 15
 
-success "Chromium service is running!"
-echo "Open in browser: http://<your-vps-ip>:3011/"
-echo "Username: $chromium_user"
-echo "Password: $chromium_pass"
+if sudo docker ps | grep -q kasm-chrome; then
+  success "Chrome browser is running!"
+  echo ""
+  echo "🌐 Access your browser at:"
+  echo "   https://$(curl -s ifconfig.me):6901"
+  echo ""
+  echo "🔐 Login credentials:"
+  echo "   User: kasm_user"
+  echo "   Password: ${vnc_password}"
+  echo ""
+  echo "✨ Features:"
+  echo "   - Full Google Chrome"
+  echo "   - High performance"
+  echo "   - File transfer"
+  echo "   - Audio support"
+  echo "   - Copy/paste"
+else
+  error "Failed to start Chrome"
+  echo "Check logs: docker compose logs"
+fi
