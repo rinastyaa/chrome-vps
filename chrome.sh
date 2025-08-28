@@ -17,7 +17,7 @@ function error() {
 if ! command -v docker &> /dev/null; then
   info "Installing Docker..."
   sudo apt update -y
-  sudo apt install -y curl docker.io docker-compose
+  sudo apt install -y curl docker.io
   sudo systemctl start docker
   sudo systemctl enable docker
 else
@@ -32,16 +32,26 @@ sudo ufw allow 6901/tcp || true
 mkdir -p ~/kasm-chrome
 cd ~/kasm-chrome
 
-# Set default or create password 
-vnc_password="${KASM_PASSWORD:-password}"
-info "Using VNC password: $vnc_password"
+# Handle password - check command line argument or use default
+if [ ! -z "$1" ]; then
+    vnc_password="$1"
+    info "Using password from command line argument"
+elif [ ! -z "$KASM_PASSWORD" ]; then
+    vnc_password="$KASM_PASSWORD"
+    info "Using password from environment variable"
+else
+    vnc_password="password"
+    info "Using default password"
+fi
+
+info "VNC password set to: $vnc_password"
 echo ""
 
 # Create docker-compose.yml
 cat > docker-compose.yml << EOF
 services:
   chrome:
-    image: kasmweb/chrome:1.15.0
+    image: kasmweb/chrome:1.17.0
     container_name: kasm-chrome
     environment:
       - VNC_PW=$vnc_password
@@ -51,6 +61,7 @@ services:
     restart: unless-stopped
     volumes:
       - ./downloads:/home/kasm-user/Downloads
+      - ./chrome-profile:/home/kasm-user/.config/google-chrome
 EOF
 
 # Start service
@@ -59,7 +70,7 @@ sudo docker compose up -d
 
 # Wait for startup
 info "Waiting for service to start..."
-sleep 15
+sleep 5
 
 if sudo docker ps | grep -q kasm-chrome; then
   success "Chrome browser is running!"
@@ -79,5 +90,5 @@ if sudo docker ps | grep -q kasm-chrome; then
   echo "   - Copy/paste"
 else
   error "Failed to start Chrome"
-  echo "Check logs: docker compose logs -f"
+  echo "Check logs: sudo docker compose logs -f"
 fi
